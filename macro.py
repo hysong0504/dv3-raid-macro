@@ -13,7 +13,7 @@ try:
     client.remote_connect("127.0.0.1", 5555)
     devices = client.devices()
     if not devices:
-        raise RuntimeError("연결된 기기가 없습니다. ADB 디버깅 설정을 확인하세요.")
+        raise RuntimeError("연결된 기기가 없습니다. LDPlayer 실행 및 ADB 디버깅 설정을 확인하세요.")
     device = devices[0]
     print(f"✅ LDPlayer 연결 성공! (기기 ID: {device.serial})")
 except Exception as e:
@@ -45,8 +45,8 @@ except Exception as e:
     print(f"❌ 이미지 로드 오류: {e}")
     sys.exit()
 
-# 3. 화면에서 이미지를 찾고 클릭하는 도우미 함수 (기본 정확도 0.95)
-def find_and_click(screen_img, template_img, target_name, threshold=0.95):
+# 3. 화면에서 이미지를 찾고 클릭하는 도우미 함수 (기본 정확도 0.85로 조정)
+def find_and_click(screen_img, template_img, target_name, threshold=0.85):
     result = cv2.matchTemplate(screen_img, template_img, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
@@ -60,8 +60,8 @@ def find_and_click(screen_img, template_img, target_name, threshold=0.95):
         return True
     return False
 
-# 클릭하지 않고 화면에 이미지가 존재하는지만 확인하는 함수
-def check_exists(screen_img, template_img, threshold=0.95):
+# 클릭하지 않고 화면에 이미지가 존재하는지만 확인하는 함수 (기본 정확도 0.85로 조정)
+def check_exists(screen_img, template_img, threshold=0.85):
     result = cv2.matchTemplate(screen_img, template_img, cv2.TM_CCOEFF_NORMED)
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
     return max_val >= threshold
@@ -90,7 +90,7 @@ while True:
             time.sleep(1.5)
             continue
 
-        # 우선순위 3: 보주/젬 미장착 안내 팝업의 [이대로 진행] 버튼 확인 (혹시 남아있을 경우 대비)
+        # 우선순위 3: 보주/젬 미장착 안내 팝업의 [이대로 진행] 버튼 확인
         elif find_and_click(screen_img, img_proceed, "보주/젬 미장착 이대로 진행"):
             time.sleep(2)
             continue
@@ -102,7 +102,7 @@ while True:
             
         # 우선순위 5: 덱 편성 화면 '전투' 버튼 확인
         elif find_and_click(screen_img, img_battle, "전투 시작 시도"):
-            time.sleep(2) # 버튼 누른 후 2초 대기
+            time.sleep(2)
             
             # 2초 뒤 화면을 다시 찍어서 상황 판단
             check_data = device.screencap()
@@ -119,13 +119,13 @@ while True:
                 print("⚠️ 종료된 레이드 감지! X 버튼을 눌러 방을 나갑니다.")
                 
                 # 1차 탈출: 덱 편성 화면 우측 하단의 X 버튼 클릭
-                if find_and_click(check_img, img_x, "편성 화면 나가기(X)", threshold=0.90):
-                    time.sleep(2) # 대기실로 돌아가는 시간 대기
+                if find_and_click(check_img, img_x, "편성 화면 나가기(X)"):
+                    time.sleep(2)
                     
                     # 2차 탈출: 대기실 화면에서도 마저 나가기 위해 화면 다시 찍고 X 버튼 한 번 더 클릭
                     wait_data = device.screencap()
                     wait_img = cv2.imdecode(np.frombuffer(wait_data, np.uint8), cv2.IMREAD_COLOR)
-                    find_and_click(wait_img, img_x, "대기실 나가기(X)", threshold=0.90)
+                    find_and_click(wait_img, img_x, "대기실 나가기(X)")
                     time.sleep(2)
             continue
             
@@ -134,8 +134,8 @@ while True:
             time.sleep(2)
             continue
             
-        # 우선순위 7: 레이드 목록 'SUMMONER' (target) 마크 확인
-        elif find_and_click(screen_img, img_target, "레이드 방 진입"):
+        # 우선순위 7: 레이드 목록 'SUMMONER' (target) 마크 확인 (배경 비침 감안하여 0.80 적용)
+        elif find_and_click(screen_img, img_target, "레이드 방 진입", threshold=0.80):
             time.sleep(2)
             continue
             
